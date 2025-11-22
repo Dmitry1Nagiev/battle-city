@@ -1,21 +1,3 @@
-[header]
-width=30
-height=20
-tilewidth=40
-tileheight=40
-
-[tilesets]
-tileset=../image/blocks/brick block.png,40,40,0,0
-tileset=../image/blocks/bush block.png,40,40,0,0
-tileset=../image/blocks/iron block.png,40,40,0,0
-tileset=../image/blocks/flag.png,40,40,0,0
-tileset=../image/blocks/water block.png,40,40,0,0
-tileset=../image/enemy/enemy.png,40,40,0,0
-tileset=../image/player/player.png,40,40,0,0
-
-[layer]
-type=Слой тайлов 1
-data=
 5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
 5,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,5,
 5,2,0,0,0,0,0,3,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,7,0,2,5,

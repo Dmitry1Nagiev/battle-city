@@ -69,19 +69,36 @@ class Brick(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
+    def update(self):
+        if pygame.sprite.spritecollide(self, player_group, False):
+            if player.dir == "left":
+                player.rect.left = self.rect.right
+            if player.dir == "right":
+                player.rect.right = self.rect.left
+            if player.dir == "top":
+                player.rect.top = self.rect.bottom
+            if player.dir == "down":
+                player.rect.bottom = self.rect.top
+
 
 
 class Bush(pygame.sprite.Sprite):
-    def __init__(self,image,pos):
+    def __init__(self, image, pos):
         pygame.sprite.Sprite.__init__(self)
         self.image = image
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
-    def update(self,image,pos):
+    def update(self):
         if pygame.sprite.spritecollide(self,player_group,False):
             if player.dir == "left":
                 player.rect.left = self.rect.right
+            if player.dir == "right":
+                player.rect.right = self.rect.left
+            if player.dir == "top":
+                player.rect.top = self.rect.bottom
+            if player.dir == "down":
+                player.rect.bottom = self.rect.top
 
 
 class Iron(pygame.sprite.Sprite):
@@ -91,10 +108,16 @@ class Iron(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
-    def update(self,image,pos):
+    def update(self):
         if pygame.sprite.spritecollide(self,player_group,False):
             if player.dir == "left":
                 player.rect.left = self.rect.right
+            if player.dir == "right":
+                player.rect.right = self.rect.left
+            if player.dir == "top":
+                player.rect.top = self.rect.bottom
+            if player.dir == "down":
+                player.rect.bottom = self.rect.top
 
 class Water(pygame.sprite.Sprite):
     def __init__(self,image,pos):
@@ -103,10 +126,17 @@ class Water(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
-    def update(self,image,pos):
+    def update(self,):
         if pygame.sprite.spritecollide(self,player_group,False):
             if player.dir == "left":
                 player.rect.left = self.rect.right
+            if player.dir == "right":
+                player.rect.right = self.rect.left
+            if player.dir == "top":
+                player.rect.top = self.rect.bottom
+            if player.dir == "down":
+                player.rect.bottom = self.rect.top
+
 class Player(pygame.sprite.Sprite):
     def __init__(self,image,pos):
         pygame.sprite.Sprite.__init__(self)
@@ -114,10 +144,28 @@ class Player(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
-    def update(self,image,pos):
-        if pygame.sprite.spritecollide(self,player_group,False):
-            if player.dir == "left":
-                player.rect.left = self.rect.right
+        self.speed = 5
+        self.dir = 'top'
+    def update(self):
+        key = pygame.key.get_pressed()
+        if key[pygame.K_a]:
+            self.image = pygame.transform.rotate(player_image,90)
+            self.rect.x -= self.speed
+            self.dir = 'left'
+        elif key[pygame.K_w]:
+            self.image = pygame.transform.rotate(player_image, 360)
+            self.rect.y -= self.speed
+            self.dir = 'top'
+        elif key[pygame.K_d]:
+            self.image = pygame.transform.rotate(player_image, 270)
+            self.rect.x += self.speed
+            self.dir = 'right'
+        elif key[pygame.K_s]:
+            self.image = pygame.transform.rotate(player_image, 180)
+            self.rect.y += self.speed
+            self.dir = 'down'
+
+
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self,image,pos):
@@ -127,16 +175,42 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = pos[0]
         self.rect.y = pos[1]
         self.speed = 1
+
         self.dir = "top"
         self.timer_move = 0
-    def update(self,image,pos):
+    def update(self):
         self.timer_move += 1
         if self.timer_move / FPS > 2:
             if random.randint(1,4) == 1:
                 self.dir = 'top'
+        if self.dir == 'top':
+            self.image = pygame.transform.rotate(enemy_image,360)
+            self.rect.y -= self.speed
+        if self.dir == 'right':
+            self.image = pygame.transform.rotate(enemy_image, 270)
+            self.rect.x += self.speed
+        if self.dir == 'left':
+            self.image = pygame.transform.rotate(enemy_image, 90)
+            self.rect.x -= self.speed
+        if self.dir == 'bottom':
+            self.image = pygame.transform.rotate(enemy_image, 180)
+            self.rect.y += self.speed
+        if (pygame.sprite.spritecollide(self,brick_group,False)
+            or pygame.sprite.spritecollide(self,water_group,False)) \
+                or pygame.sprite.spritecollide(self,bush_group,False) \
+                or pygame.sprite.spritecollide(self, iron_group, False) :
+            self.timer_move = 0
             if self.dir == 'top':
-                self.image = pygame.transform.rotate(enemy_image,0)
-                self.rect.y -= self.speed
+                self.dir = 'bottom'
+            elif self.dir == 'bottom':
+                self.dir = 'top'
+            elif self.dir == 'left' :
+                self.dir = 'right'
+            elif self.dir == 'left':
+                self.dir = 'right'
+
+
+
 class Flag(pygame.sprite.Sprite):
     def __init__(self,image,pos):
         pygame.sprite.Sprite.__init__(self)
@@ -144,25 +218,17 @@ class Flag(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = pos[0]
         self.rect.y = pos[1]
-    def update(self,image,pos):
+    def update(self):
         if pygame.sprite.spritecollide(self,player_group,False):
             if player.dir == "left":
                 player.rect.left = self.rect.right
-class Player(pygame.sprite.Sprite):
-    def __init__(self, image, pos):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = image
-        self.rect = self.image.get_rect()
-        self.rect.x = pos[0]
-        self.rect.y = pos[1]
-        self.speed = 5
-        self.dir = "top"
-    def update(self):
-        key = pygame.key.get_pressed()
-        if key[pygame.K_a]:
-            self.image = pygame.transform.rotate(player_image,90)
-            self.rect.x -= self.speed
-            self.dir = "left"
+            if player.dir == "right":
+                player.rect.right = self.rect.left
+            if player.dir == "top":
+                player.rect.top = self.rect.bottom
+            if player.dir == "down":
+                player.rect.bottom = self.rect.top
+
 
 
 
