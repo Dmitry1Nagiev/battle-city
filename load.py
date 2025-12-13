@@ -14,6 +14,7 @@ bullet_image = [pygame.image.load('image/player/boom/1.png').convert_alpha(),
                 pygame.image.load('image/player/boom/2.png').convert_alpha(),
                 pygame.image.load('image/player/boom/3.png').convert_alpha(),
                 pygame.image.load('image/player/boom/4.png').convert_alpha()]
-
+shot_sound = pygame.mixer.Sound('sound/shot.mp3')
+boom_sound = pygame.mixer.Sound('sound/boom.mp3')
 
 

@@ -29,6 +29,9 @@ def startWinMenu():
     button_win_group.draw(sc)
     button_win_group.update()
     pygame.display.update()
+    text = 'You Win!'
+    text_render = font.render(text, 'red', True)
+    sc.blit(text_render, (920, 220))
 
 
 class Button(pygame.sprite.Sprite):
@@ -57,6 +60,8 @@ class Button(pygame.sprite.Sprite):
                     drawMaps('1.txt')
                 if lvl == 'back' :
                     lvl = 'menu'
+                if lvl == 'loose':
+                    lvl =='backa'
 
 
 
@@ -215,6 +220,10 @@ class Player(pygame.sprite.Sprite):
         self.frame = 0
         self.timer_anime = 0
         self.anime = False
+        self.boom = True
+        if self.boom:
+            boom_sound.play()
+            self.boom = False
 
     def update(self):
         self.timer_shot += 1
@@ -244,6 +253,7 @@ class Player(pygame.sprite.Sprite):
             self.dir = 'down'
 
         if key[pygame.K_SPACE] and self.timer_shot / FPS > 1:
+            shot_sound.play()
             bullet = Bullet_player(player_bullet,self.rect.center, self.dir)
             bullet_player_group.add(bullet)
             self.timer_shot = 0
@@ -284,6 +294,11 @@ class Bullet_player(pygame.sprite.Sprite):
         if pygame.sprite.groupcollide(bullet_player_group, brick_group, True, True) \
                 or pygame.sprite.groupcollide(bullet_player_group, enemy_group, True,True):
                 self.kill()
+
+        if pygame.sprite.groupcollide(bullet_player_group, flag_group, True,True):
+            lvl = 'win'
+        if pygame.sprite.groupcollide(bullet_player_group,iron_group,False,False):
+            Bullet_player.kill(self)
         if pygame.sprite.spritecollide(self,enemy_group, True):
                 self.anime = True
                 self.speed = 0
@@ -298,10 +313,6 @@ class Bullet_player(pygame.sprite.Sprite):
                     self.frame += 1
                 self.timer_anime = 0
             self.image = bullet_image[self.frame]
-        if pygame.sprite.groupcollide(bullet_player_group, flag_group, True,True):
-            lvl = 'win'
-        if pygame.sprite.groupcollide(bullet_player_group,iron_group,False,False):
-            Bullet_player.kill(self)
 
 
 
@@ -327,19 +338,23 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.x = pos[0]
         self.rect.y = pos[1]
         self.speed = 1
-
         self.dir = "top"
         self.timer_move = 0
         self.timer_shot = 0
+        self.trigger = False
+        self.atack_dir = None
+        self.timer_anime = 0
+        self.anime = False
+        self.boom = True
+
+
+
 
 
     def update(self):
         self.timer_move += 1
         self.timer_shot += 1
-        if self.timer_shot / FPS > 1:
-            bullet_en = Bullet_enemy(enemy_bullet, self.rect.center, self.dir)
-            bullet_enemy_group.add(bullet_en)
-            self.timer_shot = 0
+
         d = random.randint(1,4)
         if self.timer_move / FPS > 2:
             if d == 1:
@@ -352,15 +367,20 @@ class Enemy(pygame.sprite.Sprite):
                 self.dir = 'left'
             self.timer_move = 0
         if self.dir == 'top':
+            self.anime = True
             self.image = pygame.transform.rotate(enemy_image,360)
             self.rect.y -= self.speed
+            #self.dir = 'top'
         elif self.dir == 'bottom':
+            self.anime = True
             self.image = pygame.transform.rotate(enemy_image, 180)
             self.rect.y += self.speed
         if self.dir == 'right':
+            self.anime = True
             self.image = pygame.transform.rotate(enemy_image, 270)
             self.rect.x += self.speed
         elif self.dir == 'left':
+            self.anime = True
             self.image = pygame.transform.rotate(enemy_image, 90)
             self.rect.x -= self.speed
 
@@ -377,6 +397,45 @@ class Enemy(pygame.sprite.Sprite):
                 self.dir = 'right'
             elif self.dir == 'right':
                 self.dir = 'left'
+        pygame.sprite.groupcollide(bullet_player_group,enemy_group, True,True)
+        if self.timer_shot / FPS > 1:
+            bullet_en = Bullet_enemy(enemy_bullet, self.rect.center, self.dir)
+            bullet_enemy_group.add(bullet_en)
+            self.timer_shot = 0
+
+        d = ((self.rect.center[0] - player.rect.center[0]) ** 2
+            + (self.rect.center[1] - player.rect.center[1]) ** 2) ** (1/2)
+        if d < 300:
+            self.trigger = True
+        if self.trigger:
+            pos_player = player.rect.center
+            pos = self.rect.center
+            if pos[0] - pos_player[0] > 0:
+                if pos[1] - pos_player[1] > 0:
+                    self.atack_dir = ('left','top')
+                else:
+                    self.atack_dir = ('left','bottom')
+            else:
+                if pos[1] - pos_player[1] > 0:
+                    self.atack_dir = ('right','top')
+                else:
+                    self.atack_dir = ('right','bottom')
+            if self.atack_dir == ('left','top'):
+                self.dir = 'left'
+                if abs(pos[0]-pos_player[0]) < 20:
+                    self.dir = 'top'
+            elif self.atack_dir == ('left','bottom'):
+                self.dir = 'left'
+                if abs(pos[0]-pos_player[0]) < 20:
+                    self.dir = 'bottom'
+            elif self.atack_dir == ('right','top'):
+                self.dir = 'right'
+                if abs(pos[0]-pos_player[0]) < 20:
+                    self.dir = 'top'
+            elif self.atack_dir == ('right','bottom'):
+                self.dir = 'right'
+                if abs(pos[0]-pos_player[0]) < 20:
+                    self.dir = 'bottom'
 
 
 
@@ -389,7 +448,7 @@ class Bullet_enemy(pygame.sprite.Sprite):
         self.rect.y = pos[1]
         self.dir = dir
         self.speed = 5
-        self.timer_shot = 0
+
 
 
     def update(self):
@@ -405,7 +464,7 @@ class Bullet_enemy(pygame.sprite.Sprite):
         if pygame.sprite.groupcollide(bullet_enemy_group, brick_group, True, True):
             self.kill()
         if pygame.sprite.groupcollide(bullet_enemy_group, player_group, True, True):
-            lvl = 'menu'
+            lvl = 'loose'
         if pygame.sprite.groupcollide(bullet_enemy_group, iron_group, False, False):
             Bullet_enemy.kill(self)
         if self.rect.x >= WIDTH or self.rect.y >= HEIGHT or self.rect.y <= 0 or self.rect.x <= 0:
@@ -470,6 +529,8 @@ while True:
         pygame.quit()
         sys.exit()
     elif lvl == 'win':
+        startWinMenu()
+    elif lvl == 'loose':
         startWinMenu()
     clock.tick(FPS)
 
