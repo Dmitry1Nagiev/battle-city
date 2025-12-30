@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "Tileds/brick block.tsx",
+    "activeFile": "",
     "expandedProjectPaths": [
     ],
     "file.lastUsedOpenFilter": "Все файлы (*)",
@@ -36,24 +36,24 @@
     "last.imagePath": "D:/battle-city/image/blocks",
     "map.height": 20,
     "map.layerDataFormat": 4,
-    "map.orientation": 0,
+    "map.orientation": "1",
     "map.tileHeight": 40,
     "map.tileWidth": 40,
     "map.width": 30,
     "openFiles": [
         "Tileds/water block.tsx",
         "Tileds/bush block.tsx",
-        "Tileds/flag.tsx",
         "Tileds/iron block.tsx",
-        "Tileds/brick block.tsx"
+        "Tileds/brick block.tsx",
+        "Tileds/flag.tsx"
     ],
     "project": "Map.tiled-project",
     "recentFiles": [
         "Tileds/water block.tsx",
         "Tileds/bush block.tsx",
-        "Tileds/flag.tsx",
         "Tileds/iron block.tsx",
-        "Tileds/brick block.tsx"
+        "Tileds/brick block.tsx",
+        "Tileds/flag.tsx"
     ],
     "tileset.lastUsedFilter": "Файлы набора тайлов Tiled (*.tsx *.xml)",
     "tileset.lastUsedFormat": "tsx",

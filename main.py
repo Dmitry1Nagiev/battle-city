@@ -2,6 +2,7 @@ import pygame
 import os
 import sys
 import random
+from collections import deque
 
 
 
@@ -15,6 +16,8 @@ FPS = 60
 sc = pygame.display.set_mode((WIDTH,HEIGHT))
 clock = pygame.time.Clock()
 lvl = 'menu'
+lvl_game = 1
+
 from load import *
 
 font = pygame.font.SysFont('Aria', 40)
@@ -63,9 +66,48 @@ class Button(pygame.sprite.Sprite):
                 if lvl == 'loose':
                     lvl =='backa'
 
+def get_grid():
+    grid = [[0 for _ in range(WIDTH // 40)] for _ in range(HEIGHT // 40)]
+    for brick in brick_group:
+        x = brick.rect.x // 40
+        y = brick.rect.y // 40
+        grid[y][x] = 1
+    for iron in iron_group:
+        x = iron.rect.x // 40
+        y = iron.rect.y // 40
+        grid[y][x] = 1
+    for water in water_group:
+        x = water.rect.x // 40
+        y = water.rect.y // 40
+        grid[y][x] = 1
+    return grid
+
+
+
+def bfs(start, goal, grid):
+    queue = deque()
+    queue.append((start, [start]))
+    visited = set()
+    visited.add(start)
+
+    while queue:
+        current, path = queue.popleft()
+        if current == goal:
+            return path
+
+        x, y = current
+        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < len(grid[0]) and 0 <= ny < len(grid):
+                if grid[ny][nx] == 0 and (nx, ny) not in visited:
+                    queue.append(((nx, ny), path + [(nx, ny)]))
+                    visited.add((nx, ny))
+    return None
+
 
 
 def lvlGame():
+    global lvl_game
     sc.fill('black')
     brick_group.update()
     brick_group.draw(sc)
@@ -87,6 +129,10 @@ def lvlGame():
     bush_group.update()
     bush_group.draw(sc)
     pygame.display.update()
+    if len(enemy_group) == 0:
+        lvl_game += 1
+        restart()
+        drawMaps(str(lvl_game)+'.txt')
 
 
 def restart():
@@ -268,7 +314,7 @@ class Player(pygame.sprite.Sprite):
 
 
 class Bullet_player(pygame.sprite.Sprite):
-    def __init__(self,image,pos,dir):
+    def __init__(self, image, pos, dir):
         pygame.sprite.Sprite.__init__(self)
         self.image = image
         self.rect = self.image.get_rect()
@@ -280,54 +326,47 @@ class Bullet_player(pygame.sprite.Sprite):
         self.timer_anime = 0
         self.anime = False
 
-
     def update(self):
         global lvl
-        if self.dir == 'top':
-            self.rect.y -= self.speed
-        elif self.dir == 'down':
-            self.rect.y += self.speed
-        elif self.dir == 'left':
-            self.rect.x -= self.speed
-        elif self.dir == 'right':
-            self.rect.x += self.speed
-        if pygame.sprite.groupcollide(bullet_player_group, brick_group, True, True) \
-                or pygame.sprite.groupcollide(bullet_player_group, enemy_group, True,True):
-                self.kill()
+        # движение только если нет анимации
+        if not self.anime:
+            if self.dir == 'top':
+                self.rect.y -= self.speed
+            elif self.dir == 'down':
+                self.rect.y += self.speed
+            elif self.dir == 'left':
+                self.rect.x -= self.speed
+            elif self.dir == 'right':
+                self.rect.x += self.speed
 
-        if pygame.sprite.groupcollide(bullet_player_group, flag_group, True,True):
-            lvl = 'win'
-        if pygame.sprite.groupcollide(bullet_player_group,iron_group,False,False):
-            Bullet_player.kill(self)
-        if pygame.sprite.spritecollide(self,enemy_group, True):
+
+            # столкновения — запускаем анимацию вместо мгновенного удаления
+            if pygame.sprite.groupcollide(bullet_player_group, brick_group, False, True) or \
+                    pygame.sprite.groupcollide(bullet_player_group, enemy_group, False, True) or \
+                    pygame.sprite.groupcollide(bullet_player_group, flag_group, False, True) or \
+                    pygame.sprite.groupcollide(bullet_player_group, iron_group, False, False):
                 self.anime = True
                 self.speed = 0
+
+            # если попали по флагу — сразу победа
+            if pygame.sprite.groupcollide(bullet_player_group, flag_group, True, True):
+                lvl = 'win'
+
+        # анимация взрыва
         if self.anime:
             self.timer_anime += 1
             if self.timer_anime / FPS > 0.1:
-                if self.frame == len(bullet_image) - 1:
-                    self.frame = 0
-                    self.rect.center = (-1000,0)
-                    self.kill()
-                else:
+                if self.frame < len(bullet_image) - 1:
                     self.frame += 1
+                else:
+                    self.kill()  # удаляем пулю только после последнего кадра
                 self.timer_anime = 0
+
+            # сохраняем центр перед сменой картинки
+            center = self.rect.center
             self.image = bullet_image[self.frame]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            self.rect = self.image.get_rect()
+            self.rect.center = center
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -345,98 +384,141 @@ class Enemy(pygame.sprite.Sprite):
         self.atack_dir = None
         self.timer_anime = 0
         self.anime = False
-        self.boom = True
 
+    def try_move(self, dx, dy):
+        """Проверяем, можно ли сделать шаг"""
+        next_rect = self.rect.copy()
+        next_rect.x += dx
+        next_rect.y += dy
 
-
-
+        # если столкновение с препятствием — шаг отменяется
+        if (pygame.sprite.spritecollideany(self, brick_group) or
+            pygame.sprite.spritecollideany(self, iron_group) or
+            pygame.sprite.spritecollideany(self, water_group)):
+            return False
+        return True
 
     def update(self):
         self.timer_move += 1
         self.timer_shot += 1
 
-        d = random.randint(1,4)
         if self.timer_move / FPS > 2:
-            if d == 1:
-                self.dir = 'top'
-            if d == 3:
-                self.dir = 'right'
-            if d == 4:
-                self.dir = 'bottom'
-            if d == 2:
-                self.dir = 'left'
+            self.dir = random.choice(['top', 'bottom', 'left', 'right'])
             self.timer_move = 0
-        if self.dir == 'top':
-            self.anime = True
-            self.image = pygame.transform.rotate(enemy_image,360)
-            self.rect.y -= self.speed
-            #self.dir = 'top'
-        elif self.dir == 'bottom':
-            self.anime = True
-            self.image = pygame.transform.rotate(enemy_image, 180)
-            self.rect.y += self.speed
-        if self.dir == 'right':
-            self.anime = True
-            self.image = pygame.transform.rotate(enemy_image, 270)
-            self.rect.x += self.speed
-        elif self.dir == 'left':
-            self.anime = True
-            self.image = pygame.transform.rotate(enemy_image, 90)
-            self.rect.x -= self.speed
 
-        if (pygame.sprite.spritecollide(self,brick_group,False)
-            or pygame.sprite.spritecollide(self,water_group,False)) \
-                or pygame.sprite.spritecollide(self,bush_group,False) \
-                or pygame.sprite.spritecollide(self, iron_group, False) :
-            self.timer_move = 0
-            if self.dir == 'top':
-                self.dir = 'bottom'
-            elif self.dir == 'bottom':
-                self.dir = 'top'
-            elif self.dir == 'left' :
-                self.dir = 'right'
-            elif self.dir == 'right':
-                self.dir = 'left'
-        pygame.sprite.groupcollide(bullet_player_group,enemy_group, True,True)
+        dx, dy = 0, 0
+        if self.dir == 'top':
+            self.image = pygame.transform.rotate(enemy_image, 360)
+            dy = -self.speed
+        elif self.dir == 'bottom':
+            self.image = pygame.transform.rotate(enemy_image, 180)
+            dy = self.speed
+        elif self.dir == 'left':
+            self.image = pygame.transform.rotate(enemy_image, 90)
+            dx = -self.speed
+        elif self.dir == 'right':
+            self.image = pygame.transform.rotate(enemy_image, 270)
+            dx = self.speed
+
+        temp_sprite = pygame.sprite.Sprite()
+        temp_sprite.rect = self.rect.copy()
+        temp_sprite.rect.x += dx
+        temp_sprite.rect.y += dy
+
+        if not (pygame.sprite.spritecollideany(temp_sprite, brick_group) or
+                pygame.sprite.spritecollideany(temp_sprite, iron_group) or
+                pygame.sprite.spritecollideany(temp_sprite, water_group)):
+            self.rect = temp_sprite.rect
+        else:
+            self.dir = random.choice(['top', 'bottom', 'left', 'right'])
+
+        pygame.sprite.groupcollide(bullet_player_group, enemy_group, True, True)
         if self.timer_shot / FPS > 1:
             bullet_en = Bullet_enemy(enemy_bullet, self.rect.center, self.dir)
             bullet_enemy_group.add(bullet_en)
             self.timer_shot = 0
 
         d = ((self.rect.center[0] - player.rect.center[0]) ** 2
-            + (self.rect.center[1] - player.rect.center[1]) ** 2) ** (1/2)
+             + (self.rect.center[1] - player.rect.center[1]) ** 2) ** (1 / 2)
+
         if d < 300:
             self.trigger = True
+        else:
+            self.trigger = False
+            self.path = None  # сбрасываем путь, чтобы не зависал
+
         if self.trigger:
             pos_player = player.rect.center
             pos = self.rect.center
             if pos[0] - pos_player[0] > 0:
-                if pos[1] - pos_player[1] > 0:
-                    self.atack_dir = ('left','top')
-                else:
-                    self.atack_dir = ('left','bottom')
+                self.atack_dir = ('left', 'top') if (pos[1] - pos_player[1] > 0) else ('left', 'bottom')
             else:
-                if pos[1] - pos_player[1] > 0:
-                    self.atack_dir = ('right','top')
-                else:
-                    self.atack_dir = ('right','bottom')
-            if self.atack_dir == ('left','top'):
+                self.atack_dir = ('right', 'top') if (pos[1] - pos_player[1] > 0) else ('right', 'bottom')
+
+            if self.atack_dir == ('left', 'top'):
                 self.dir = 'left'
-                if abs(pos[0]-pos_player[0]) < 20:
+                if abs(pos[0] - pos_player[0]) < 20:
                     self.dir = 'top'
-            elif self.atack_dir == ('left','bottom'):
+            elif self.atack_dir == ('left', 'bottom'):
                 self.dir = 'left'
-                if abs(pos[0]-pos_player[0]) < 20:
+                if abs(pos[0] - pos_player[0]) < 20:
                     self.dir = 'bottom'
-            elif self.atack_dir == ('right','top'):
+            elif self.atack_dir == ('right', 'top'):
                 self.dir = 'right'
-                if abs(pos[0]-pos_player[0]) < 20:
+                if abs(pos[0] - pos_player[0]) < 20:
                     self.dir = 'top'
-            elif self.atack_dir == ('right','bottom'):
+            elif self.atack_dir == ('right', 'bottom'):
                 self.dir = 'right'
-                if abs(pos[0]-pos_player[0]) < 20:
+                if abs(pos[0] - pos_player[0]) < 20:
                     self.dir = 'bottom'
 
+            # если уткнулись в препятствие — рикошет направления
+            if (pygame.sprite.spritecollide(self, brick_group, False) or
+                    pygame.sprite.spritecollide(self, water_group, False) or
+                    pygame.sprite.spritecollide(self, bush_group, False) or
+                    pygame.sprite.spritecollide(self, iron_group, False)):
+                self.timer_move = 0
+                if self.dir == 'top':
+                    self.dir = 'bottom'
+                elif self.dir == 'bottom':
+                    self.dir = 'top'
+                elif self.dir == 'left':
+                    self.dir = 'right'
+                elif self.dir == 'right':
+                    self.dir = 'left'
+
+            # ВСЕГДА формируем grid перед BFS
+            grid = get_grid()
+            start = (self.rect.x // 40, self.rect.y // 40)
+            goal = (player.rect.x // 40, player.rect.y // 40)
+            path = bfs(start, goal, grid)
+            if self.timer_move % FPS == 0:  # раз в секунду
+                grid = get_grid()
+                start = (self.rect.x // 40, self.rect.y // 40)
+                goal = (player.rect.x // 40, player.rect.y // 40)
+
+
+                if hasattr(self, "path") and self.path and len(self.path) > 1:
+                    next_cell = self.path[1]
+                    target_x = next_cell[0] * 40
+                    target_y = next_cell[1] * 40
+
+                    if self.rect.x < target_x:
+                        if self.try_move(self.speed, 0):
+                            self.rect.x += self.speed
+                            self.dir = 'right'
+                    elif self.rect.x > target_x:
+                        if self.try_move(-self.speed, 0):
+                            self.rect.x -= self.speed
+                            self.dir = 'left'
+                    elif self.rect.y < target_y:
+                        if self.try_move(0, self.speed):
+                            self.rect.y += self.speed
+                            self.dir = 'bottom'
+                    elif self.rect.y > target_y:
+                        if self.try_move(0, -self.speed):
+                            self.rect.y -= self.speed
+                            self.dir = 'top'
 
 
 class Bullet_enemy(pygame.sprite.Sprite):
@@ -531,7 +613,9 @@ while True:
     elif lvl == 'win':
         startWinMenu()
     elif lvl == 'loose':
+        lvl_game = 1
         startWinMenu()
+
     clock.tick(FPS)
 
 
